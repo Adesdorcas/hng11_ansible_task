@@ -6,28 +6,8 @@
     repo_url: "https://github.com/hngprojects/hng_boilerplate_nestjs"
     branch: "devops"
     app_dir: "/opt/stage_5b"
-    pg_admin_user: "admin"
-    pg_admin_password: "devopsnext"
-    pg_db: "hng_db"
-    node_version: "14.x"
 
   tasks:
-    - name: Update and upgrade apt packages
-      apt:
-        update_cache: yes
-        upgrade: yes
-
-    - name: Install required packages
-      apt:
-        name:
-          - git
-          - npm
-          - postgresql
-          - postgresql-contrib
-          - curl
-          - gnupg2
-        state: present
-
     - name: Clone the repository
       git:
         repo: "{{ repo_url }}"
