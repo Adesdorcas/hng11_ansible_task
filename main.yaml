@@ -1,7 +1,7 @@
 ---
 - name: Setup and Deploy NestJS Boilerplate
   hosts: hng
-  become: true
+  become: yes
   vars:
     repo_url: "https://github.com/hngprojects/hng_boilerplate_nestjs"
     branch: "devops"
@@ -117,14 +117,4 @@
         owner: hng
         group: hng
 
-    - name: Start application with logging
-      become_user: hng
-      shell:
-        cmd: npm run start > /var/log/stage_5b/out.log 2> /var/log/stage_5b/error.log
-        chdir: /opt/stage_5b
-
-    handlers:
-    - name: restart nginx
-      service:
-        name: nginx
-        state: restarted
+    
