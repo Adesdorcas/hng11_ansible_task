@@ -96,18 +96,6 @@
         dest: /etc/nginx/sites-available/default
       notify: restart nginx
       
-    - name: Start application 
-      become_user: hng
-      shell:
-        cmd: npm run start
-        chdir: /opt/stage_5b
-
-    handlers:
-    - name: restart nginx
-      service:
-        name: nginx
-        state: restarted
-
     - name: Create log directory
       file:
         path: /var/log/stage_5b
@@ -134,3 +122,9 @@
       shell:
         cmd: npm run start > /var/log/stage_5b/out.log 2> /var/log/stage_5b/error.log
         chdir: /opt/stage_5b
+
+    handlers:
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted
