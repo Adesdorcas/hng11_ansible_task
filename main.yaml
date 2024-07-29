@@ -2,35 +2,32 @@
 - name: Setup and Deploy NestJS Boilerplate
   hosts: nextappserver
   become: yes
-  vars:
-    project_dir: /opt/stage_5b
-    nginx_config_path: /etc/nginx/sites-available/default
-    service_file_path: /etc/systemd/system/stage_5b.service
+  
+  tasks:
+  - name: Clone the devops branch of the repository
+    git:
+      repo: 'https://github.com/hngprojects/hng_boilerplate_nestjs.git'
+      dest: /opt/stage_5b
+      version: devops
+      force: yes
 
-- name: Clone the devops branch of the repository
-  git:
-    repo: 'https://github.com/hngprojects/hng_boilerplate_nestjs.git'
-    dest: "{{ project_dir }}"
-    version: devops
-    force: yes
+  - name: Create hng user with sudo privileges
+    user:
+    name: hng
+    groups: sudo
+    append: yes
+    shell: /bin/bash
 
-- name: Create hng user with sudo privileges
-  user:
-  name: hng
-  groups: sudo
-  append: yes
-  shell: /bin/bash
-
-- name: Change ownership of /opt/stage_5b
-  file:
-  path: /opt/stage_5b
-  owner: hng
-  group: hng
-  recurse: yes
-    
-- name: Install dependencies
-  become_user: hng
-  npm:
-  path: /opt/stage_5b
-  state: present
-    
+  - name: Change ownership of /opt/stage_5b
+    file:
+    path: /opt/stage_5b
+    owner: hng
+    group: hng
+    recurse: yes
+      
+  - name: Install dependencies
+    become_user: hng
+    npm:
+    path: /opt/stage_5b
+    state: present
+      
