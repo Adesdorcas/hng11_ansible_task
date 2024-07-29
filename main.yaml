@@ -28,11 +28,6 @@
           - gnupg2
         state: present
 
-    - name: Install Node.js
-      shell: |
-        curl -sL https://deb.nodesource.com/setup_{{ node_version }} | bash -
-        apt-get install -y nodejs
-
     - name: Clone the repository
       git:
         repo: "{{ repo_url }}"
@@ -60,130 +55,82 @@
         state: present
         create_home: yes
 
-    - name: Install npm dependencies
+    - name: Install dependencies
+      become_user: hng
       npm:
-        path: "{{ app_dir }}"
+        path: /opt/stage_5b
         state: present
 
-    - name: Build the application
-      shell: npm run build
-      args:
-        chdir: "{{ app_dir }}"
+    - name: Install PostgreSQL
+      apt:
+        name: postgresql-14
+        state: present
 
-    - name: Start the application
-      shell: |
-        npm start &
-      args:
-        chdir: "{{ app_dir }}"
+    - name: Configure PostgreSQL
+      become_user: postgres
+      postgresql_db:
+        name: stage_5b
+        state: present
 
-    - name: Install and configure PostgreSQL
-      block:
-        - name: Ensure PostgreSQL is running
-          systemd:
-            name: postgresql
-            state: started
-            enabled: yes
+    - name: Save admin user and credentials
+      copy:
+        content: "hng:password"
+        dest: /var/secrets/pg_pw.txt
+        owner: hng
+        group: hng
+        mode: '0600'
 
-        - name: Set PostgreSQL admin user password
-          become_user: postgres
-          postgresql_user:
-            name: "{{ pg_admin_user }}"
-            password: "{{ pg_admin_password }}"
-            role_attr_flags: "SUPERUSER,CREATEDB"
-
-        - name: Create a database
-          become_user: postgres
-          postgresql_db:
-            name: "{{ pg_db }}"
-            owner: "{{ pg_admin_user }}"
-
-        - name: Save PostgreSQL admin credentials
-          copy:
-            content: |
-              POSTGRES_USER={{ pg_admin_user }}
-              POSTGRES_PASSWORD={{ pg_admin_password }}
-              POSTGRES_DB={{ pg_db }}
-            dest: /var/secrets/pg_pw.txt
-            owner: root
-            group: root
-            mode: '0600'
-
-    - name: Install and configure RabbitMQ
-      block:
-        - name: Install RabbitMQ
-          apt:
-            name: rabbitmq-server
-            state: present
-
-        - name: Ensure RabbitMQ is running
-          systemd:
-            name: rabbitmq-server
-            state: started
-            enabled: yes
-
+    - name: Install RabbitMQ
+      apt:
+        name: rabbitmq-server
+        state: present
+    
     - name: Install Nginx 1.26
-      shell: |
-        sudo apt-get install -y apt-transport-https lsb-release ca-certificates
-        echo "deb http://nginx.org/packages/ubuntu `lsb_release -cs` nginx" | tee /etc/apt/sources.list.d/nginx.list
-        curl -fsSL https://nginx.org/keys/nginx_signing.key | apt-key add -
-        apt-get update
-        apt-get install -y nginx=1.26.*
+      apt:
+        name: nginx=1.26*
+        state: present
 
-    - name: Configure Nginx
-      block:
-        - name: Remove default nginx configuration
-          file:
-            path: /etc/nginx/conf.d/default.conf
-            state: absent
+    - name: Setup Nginx to reverse proxy application to port 80
+      template:
+        src: templates/nginx.conf.j2
+        dest: /etc/nginx/sites-available/default
+      notify: restart nginx
+      
+    - name: Start application 
+      become_user: hng
+      shell:
+        cmd: npm run start
+        chdir: /opt/stage_5b
 
-        - name: Create Nginx configuration for the application
-          copy:
-            content: |
-              server {
-                  listen 80;
-                  server_name _;
-                  location / {
-                      proxy_pass http://127.0.0.1:3000;
-                      proxy_http_version 1.1;
-                      proxy_set_header Upgrade $http_upgrade;
-                      proxy_set_header Connection 'upgrade';
-                      proxy_set_header Host $host;
-                      proxy_cache_bypass $http_upgrade;
-                  }
-              }
-            dest: /etc/nginx/conf.d/stage_5b.conf
-            owner: root
-            group: root
-            mode: '0644'
+    handlers:
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted
 
-        - name: Restart Nginx
-          systemd:
-            name: nginx
-            state: restarted
-            enabled: yes
+    - name: Create log directory
+      file:
+        path: /var/log/stage_5b
+        state: directory
+        owner: hng
+        group: hng
 
-    - name: Configure logging
-      block:
-        - name: Create log directory
-          file:
-            path: /var/log/stage_5b
-            state: directory
-            owner: hng
-            group: hng
-            mode: '0755'
+    - name: Configure stderr logging
+      copy:
+        content: ""
+        dest: /var/log/stage_5b/error.log
+        owner: hng
+        group: hng
 
-        - name: Create stderr log file
-          file:
-            path: /var/log/stage_5b/error.log
-            state: touch
-            owner: hng
-            group: hng
-            mode: '0644'
+    - name: Configure stdout logging
+      copy:
+        content: ""
+        dest: /var/log/stage_5b/out.log
+        owner: hng
+        group: hng
 
-        - name: Create stdout log file
-          file:
-            path: /var/log/stage_5b/out.log
-            state: touch
-            owner: hng
-            group: hng
-            mode: '0644'
+    - name: Start application with logging
+      become_user: hng
+      shell:
+        cmd: npm run start > /var/log/stage_5b/out.log 2> /var/log/stage_5b/error.log
+        chdir: /opt/stage_5b
