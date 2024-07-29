@@ -1,14 +1,16 @@
 server {
-  listen 80;
-  
-  server_name _;
+    listen 80;
+    server_name 54.92.200.49;
 
-  location / {
-    proxy_pass http://127.0.0.1:{{ app_port }};
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection 'upgrade';
-    proxy_set_header Host $host;
-    proxy_cache_bypass $http_upgrade;
-  }
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    error_log /var/log/stage_5b/error.log;
+    access_log /var/log/stage_5b/out.log;
 }

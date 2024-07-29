@@ -1,181 +1,152 @@
----
 - name: Setup and Deploy NestJS Boilerplate
   hosts: hng
   become: yes
+  become_method: sudo
   vars:
-    repo_url: "https://github.com/hngprojects/hng_boilerplate_nestjs"
-    branch: "devops"
-    app_dir: "/opt/stage_5b"
-    pg_user: "admin"
-    pg_password: "devopsnext"
-    pg_database: "hngnext_db"
-    pg_pw_file: "/var/secrets/pg_pw.txt"
-    node_version: "16.x"
-    rabbitmq_version: "3.8"
-    nginx_conf: "/etc/nginx/sites-available/default"
-    app_port: 3000
-    proxy_port: 80
-    log_dir: "/var/log/stage_5b"
-    hng_user: "hng"
+    project_dir: /opt/stage_5b
+    nginx_config_path: /etc/nginx/sites-available/default
+    service_file_path: /etc/systemd/system/stage_5b.service
 
   tasks:
-    - name: Update apt package index
-      apt:
-        update_cache: yes
+    - name: Create Ansible temporary directory
+      file:
+        path: /home/ubuntu/.ansible/tmp
+        state: directory
+        mode: '0700'
+        owner: ubuntu
+        group: ubuntu
+      become: yes
 
     - name: Create hng user with sudo privileges
       user:
-        name: "{{ hng_user }}"
+        name: "hng"
         shell: /bin/bash
         groups: sudo
         append: yes
+      become: yes
 
-    - name: Create log directory
-      file:
-        path: "{{ log_dir }}"
-        state: directory
-        owner: "{{ hng_user }}"
-        group: "{{ hng_user }}"
-        mode: '0755'
-
-    - name: Clone the boilerplate repository
+    - name: Clone the devops branch of the repository
       git:
-        repo: "{{ repo_url }}"
-        dest: "{{ app_dir }}"
-        version: "{{ branch }}"
-        force: yes
-      become_user: "{{ hng_user }}"
+        repo: 'https://github.com/hngprojects/hng_boilerplate_nestjs.git'
+        dest: "{{ project_dir }}"
+        version: devops
+      become: yes
+      become_user: hng
 
-    - name: Install required packages
-      apt:
-        name:
-          - git
-          - curl
-          - gnupg
-          - ca-certificates
-          - lsb-release
-          - apt-transport-https
-          - software-properties-common
-        state: present
-
-    - name: Install Node.js
-      shell: |
-        curl -fsSL https://deb.nodesource.com/setup_{{ node_version }} | bash -
-        apt-get install -y nodejs
-
-    - name: Install PM2 globally
-      npm:
-        name: pm2
-        global: yes
-
-    - name: Install project dependencies
-      npm:
-        path: "{{ app_dir }}"
-        state: present
-      become_user: "{{ hng_user }}"
+    - name: Ensure /var/secrets directory exists
+      file:
+        path: /var/secrets
+        state: directory
+        mode: '0700'
+        owner: root
+        group: root
+      become: yes
 
     - name: Install PostgreSQL
       apt:
         name: postgresql
         state: present
-
-    - name: Ensure PostgreSQL service is running
-      service:
-        name: postgresql
-        state: started
-        enabled: yes
-
-    - name: Setup PostgreSQL database
-      become_user: postgres
-      postgresql_db:
-        name: "{{ pg_database }}"
-
-    - name: Setup PostgreSQL user
-      become_user: postgres
-      postgresql_user:
-        name: "{{ pg_user }}"
-        password: "{{ pg_password }}"
-        priv: "ALL"
+      become: yes
 
     - name: Save PostgreSQL credentials
       copy:
-        content: "User: {{ pg_user }}\nPassword: {{ pg_password }}\nDatabase: {{ pg_database }}"
-        dest: "{{ pg_pw_file }}"
+        content: |
+          admin: nextpasswd
+        dest: /var/secrets/pg_pw.txt
         owner: root
         group: root
         mode: '0600'
+      become: yes
 
-    - name: Install RabbitMQ
-      shell: |
-        echo "deb https://dl.bintray.com/rabbitmq-erlang/debian bionic erlang" | tee /etc/apt/sources.list.d/bintray.erlang.list
-        curl -fsSL https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc | apt-key add -
-        apt-get update
-        apt-get install -y rabbitmq-server
+    - name: Install Node.js and npm
+      apt:
+        name: nodejs
+        state: present
+      become: yes
 
-    - name: Ensure RabbitMQ service is running
-      service:
-        name: rabbitmq-server
-        state: started
-        enabled: yes
+    - name: Install yarn globally
+      npm:
+        name: yarn
+        global: yes
+      become: yes
+
+    - name: Install application dependencies
+      command: yarn install
+      args:
+        chdir: "{{ project_dir }}"
+      become: yes
+      become_user: hng
+
+    - name: Compile TypeScript to JavaScript
+      command: yarn build
+      args:
+        chdir: "{{ project_dir }}"
+      become: yes
+      become_user: hng
+
+    - name: Start the development server
+      command: yarn dev
+      args:
+        chdir: "{{ project_dir }}"
+      become: yes
+      become_user: hng
 
     - name: Install Nginx
       apt:
         name: nginx
         state: present
+      become: yes
 
-    - name: Configure Nginx to reverse proxy the application
+    - name: Configure Nginx to reverse proxy requests from port 80 to the application
       template:
         src: nginx.conf.j2
-        dest: "{{ nginx_conf }}"
-        owner: root
-        group: root
-        mode: '0644'
+        dest: "{{ nginx_config_path }}"
       notify: restart nginx
+      become: yes
 
-    - name: Ensure Nginx service is running
-      service:
-        name: nginx
-        state: started
-        enabled: yes
-
-    - name: Start the application with PM2
-      shell: |
-        cd {{ app_dir }}
-        pm2 start dist/main.js --name boilerplate -- -p {{ app_port }}
-
-    - name: Configure PM2 to save stderr and stdout logs
-      lineinfile:
-        path: "{{ app_dir }}/ecosystem.config.js"
-        line: |
-          module.exports = {
-            apps: [{
-              name: "boilerplate",
-              script: "./dist/main.js",
-              instances: "max",
-              exec_mode: "cluster",
-              env: {
-                NODE_ENV: "production",
-                PORT: {{ app_port }},
-              },
-              error_file: "{{ log_dir }}/error.log",
-              out_file: "{{ log_dir }}/out.log",
-              log_file: "{{ log_dir }}/combined.log",
-              time: true,
-              merge_logs: true,
-            }],
-          };
-      become_user: "{{ hng_user }}"
-
-    - name: Change ownership of log files
+    - name: Ensure logging directories exist
       file:
-        path: "{{ log_dir }}"
+        path: /var/log/stage_5b
         state: directory
-        owner: "{{ hng_user }}"
-        group: "{{ hng_user }}"
-        recurse: yes
+        mode: '0755'
+        owner: hng
+        group: hng
+      become: yes
+
+    - name: Configure logging for application
+      copy:
+        content: |
+          [Unit]
+          Description=Stage 5B Application
+
+          [Service]
+          ExecStart=/usr/bin/node {{ project_dir }}/dist/main.js
+          WorkingDirectory={{ project_dir }}
+          Environment=NODE_ENV=production
+          StandardOutput=append:/var/log/stage_5b/out.log
+          StandardError=append:/var/log/stage_5b/error.log
+          User=hng
+          Group=hng
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+        dest: "{{ service_file_path }}"
+        mode: '0644'
+      become: yes
+      notify: 
+        - enable and start application
 
   handlers:
     - name: restart nginx
       service:
         name: nginx
         state: restarted
+      become: yes
+    
+    - name: enable and start application
+      systemd:
+        name: stage_5b
+        enabled: yes
+        state: started
+      become: yes
