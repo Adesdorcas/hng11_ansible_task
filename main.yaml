@@ -2,39 +2,8 @@
 - name: Setup and Deploy NestJS Boilerplate
   hosts: hng
   become: yes
-  vars:
-    repo_url: "https://github.com/hngprojects/hng_boilerplate_nestjs"
-    branch: "devops"
-    app_dir: "/opt/stage_5b"
-
+  
   tasks:
-    - name: Clone the repository
-      git:
-        repo: "{{ repo_url }}"
-        dest: "{{ app_dir }}"
-        version: "{{ branch }}"
-        force: yes
-
-    - name: Create hng user with sudo privileges
-      user:
-        name: hng
-        groups: sudo
-        append: yes
-        shell: /bin/bash
-
-    - name: Change ownership of /opt/stage_5b
-      file:
-        path: /opt/stage_5b
-        owner: hng
-        group: hng
-        recurse: yes
-    
-    - name: Ensure hng user exists
-      user:
-        name: hng
-        state: present
-        create_home: yes
-
     - name: Install dependencies
       become_user: hng
       npm:
