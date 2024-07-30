@@ -1,26 +1,19 @@
 ---
 - name: Setup and Deploy NestJS Boilerplate
-  hosts: hng
+  hosts: test
   become: yes
   
   tasks:
-    - name: Install Node.js 20.16.0 LTS using NVM
-      become: yes
-      nvm:
-        version: "20.16.0"
-        state: present
+    - name: clone the repository
+      ansible.builtin.git:
+        repo: https://github.com/hngprojects/hng_boilerplate_nestjs
+        dest: /opt/stage_5b
+        single_branch: yes
+        version: devops
 
-    - name: Set Node.js 20.16.0 LTS as default
-      become: yes
-      nvm:
-        version: "20.16.0"
-        state: default
-    
-    - name: Install dependencies
-      become_user: hng
-      npm:
+    - name: Install packages based on package.json
+      community.general.npm:
         path: /opt/stage_5b
-        state: present
 
     - name: Install PostgreSQL
       apt:
@@ -46,10 +39,11 @@
         name: rabbitmq-server
         state: present
     
-    - name: Install Nginx 1.26
-      apt:
-        name: nginx=1.26*
+    - name: Install the version '1.26' of package "nginx" and allow potential downgrades
+      ansible.builtin.apt:
+        name: nginx=1.26
         state: present
+        allow_downgrade: yes
 
     - name: Setup Nginx to reverse proxy application to port 80
       template:
@@ -77,5 +71,3 @@
         dest: /var/log/stage_5b/out.log
         owner: hng
         group: hng
-
-    
