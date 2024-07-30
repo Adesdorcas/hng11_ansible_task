@@ -1,20 +1,51 @@
 ---
 - name: Setup and Deploy NestJS Boilerplate
   hosts: test
-  become: yes
-  
+  become: True
+  vars:
+    repo_url: "https://github.com/hngprojects/hng_boilerplate_nestjs"
+    branch: "devops"
+    app_dir: "/opt/stage_5b"
+    pg_user: "admin"
+    pg_password: "devopsnext"
+    pg_database: "hngnext_db"
+    pg_pw_file: "/var/secrets/pg_pw.txt"
+    node_version: "16.x"
+    rabbitmq_version: "3.8"
+    nginx_conf: "/etc/nginx/sites-available/default"
+    app_port: 3000
+    proxy_port: 80
+    log_dir: "/var/log/stage_5b"
+    hng_user: "hng"
+
   tasks:
-    - name: clone the repository
-      ansible.builtin.git:
-        repo: https://github.com/hngprojects/hng_boilerplate_nestjs
-        dest: /opt/stage_5b
-        single_branch: yes
-        version: devops
+    - name: Clone the boilerplate repository
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: "{{ branch }}"
+        force: yes
+      become_user: "ubuntu"
 
     - name: Install packages based on package.json
       community.general.npm:
         path: /opt/stage_5b
 
+    - name: Create hng user with sudo privileges
+      user:
+        name: "{{ hng_user }}"
+        shell: /bin/bash
+        groups: sudo
+        append: yes
+
+    - name: Create log directory
+      file:
+        path: "{{ log_dir }}"
+        state: directory
+        owner: "{{ hng_user }}"
+        group: "{{ hng_user }}"
+        mode: '0755'
+    
     - name: Install PostgreSQL
       apt:
         name: postgresql-14
@@ -43,7 +74,6 @@
       ansible.builtin.apt:
         name: nginx=1.26
         state: present
-        allow_downgrade: yes
 
     - name: Setup Nginx to reverse proxy application to port 80
       template:
