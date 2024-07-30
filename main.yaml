@@ -13,11 +13,16 @@
     node_version: "16.x"
     rabbitmq_version: "3.8"
     nginx_conf: "/etc/nginx/sites-available/default"
+    node_app_dir: /opt/stage_5b
     app_port: 3000
     proxy_port: 80
     log_dir: "/var/log/stage_5b"
     hng_user: "hng"
 
+  environment:
+    NVM_DIR: /var/local/nvm
+    PATH: /var/local/nvm/versions/node/v20.16.0/bin:{{ ansible_env.PATH }}
+  
   tasks:
     - name: Clone the boilerplate repository
       git:
@@ -25,12 +30,27 @@
         dest: "{{ app_dir }}"
         version: "{{ branch }}"
         force: yes
-      become_user: "ubuntu"
+    
+    - name: Install NVM
+      become: true
+      become_user: root
+      
+    - name: Check for package.json
+      ansible.builtin.stat:
+        path: '{{ node_app_dir }}/package.json'
+      register: packagejson
 
-    - name: Install packages based on package.json
+    - name: Run npm prune
+      ansible.builtin.command: npm prune
+      args:
+        chdir: '{{ node_app_dir }}'
+      when: packagejson.stat.exists
+
+    - name: Run npm install
       community.general.npm:
-        path: /opt/stage_5b
-
+        path: '{{ node_app_dir }}'
+      when: packagejson.stat.exists
+      
     - name: Create hng user with sudo privileges
       user:
         name: "{{ hng_user }}"
