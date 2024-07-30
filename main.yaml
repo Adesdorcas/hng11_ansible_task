@@ -4,12 +4,18 @@
   become: yes
   
   tasks:
-    - name: Install nodejs
+    - name: Install Node.js 20.16.0 LTS using NVM
       become: yes
-      apt:
-        name: nodejs
+      nvm:
+        version: "20.16.0"
         state: present
 
+    - name: Set Node.js 20.16.0 LTS as default
+      become: yes
+      nvm:
+        version: "20.16.0"
+        state: default
+    
     - name: Install dependencies
       become_user: hng
       npm:
