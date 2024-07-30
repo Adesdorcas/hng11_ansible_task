@@ -18,10 +18,6 @@
     proxy_port: 80
     log_dir: "/var/log/stage_5b"
     hng_user: "hng"
-
-  environment:
-    NVM_DIR: /var/local/nvm
-    PATH: /var/local/nvm/versions/node/v20.16.0/bin:{{ ansible_env.PATH }}
   
   tasks:
     - name: Clone the boilerplate repository
@@ -32,9 +28,24 @@
         force: yes
     
     - name: Install NVM
-      become: true
-      become_user: root
-      
+      become: yes
+      shell: |
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+    - name: Install Node.js 20.16.0 LTS using NVM
+      become: yes
+      shell: |
+        source ~/.nvm/nvm.sh
+        nvm install 20.16.0
+
+    - name: Set Node.js 20.16.0 LTS as default
+      become: yes
+      shell: |
+        source ~/.nvm/nvm.sh
+        nvm alias default 20.16.0
+
     - name: Check for package.json
       ansible.builtin.stat:
         path: '{{ node_app_dir }}/package.json'
@@ -65,7 +76,7 @@
         owner: "{{ hng_user }}"
         group: "{{ hng_user }}"
         mode: '0755'
-    
+
     - name: Install PostgreSQL
       apt:
         name: postgresql-14
