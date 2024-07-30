@@ -4,6 +4,12 @@
   become: yes
   
   tasks:
+    - name: Install nodejs
+      become: yes
+      apt:
+        name: nodejs
+        state: present
+
     - name: Install dependencies
       become_user: hng
       npm:
