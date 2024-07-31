@@ -19,6 +19,10 @@
     log_dir: "/var/log/stage_5b"
     hng_user: "hng"
   
+    
+  roles:
+    - geerlingguy.nodejs
+  
   tasks:
     - name: Clone the boilerplate repository
       git:
@@ -31,31 +35,11 @@
       apt:
         update_cache: yes
 
-    - name: Install Node.js dependencies
-      apt:
-        name: "{{ item }}"
-        state: present
-      loop:
-        - curl
-        - software-properties-common
-
-    - name: Add NodeSource repository
-      apt_repository:
-        repo: "deb https://deb.nodesource.com/node_14.x {{ ansible_distribution_release }} main"
-        state: present
-        update_cache: yes
-        filename: nodesource
-
-    - name: Install Node.js
-      apt:
-        name: nodejs
-        state: present
-
-    - name: Install build-essential
-      apt:
-        name: build-essential
-        state: present
-
+    # Install Node.js, npm, and global npm packages
+      nodejs_npm_global_packages:
+        - name: jslint
+        - name: node-sass
+      
     - name: Check for package.json
       ansible.builtin.stat:
         path: '{{ node_app_dir }}/package.json'
