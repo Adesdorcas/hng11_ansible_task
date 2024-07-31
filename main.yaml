@@ -27,24 +27,34 @@
         version: "{{ branch }}"
         force: yes
     
-    - name: Install NVM
-      become: yes
-      shell: |
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh
-        export NVM_DIR="$HOME/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    - name: Update apt cache
+      apt:
+        update_cache: yes
 
-    - name: Install Node.js 20.16.0 LTS using NVM
-      become: yes
-      shell: |
-        source ~/.nvm/nvm.sh
-        nvm install 20.16.0
+    - name: Install Node.js dependencies
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - curl
+        - software-properties-common
 
-    - name: Set Node.js 20.16.0 LTS as default
-      become: yes
-      shell: |
-        source ~/.nvm/nvm.sh
-        nvm alias default 20.16.0
+    - name: Add NodeSource repository
+      apt_repository:
+        repo: "deb https://deb.nodesource.com/node_14.x {{ ansible_distribution_release }} main"
+        state: present
+        update_cache: yes
+        filename: nodesource
+
+    - name: Install Node.js
+      apt:
+        name: nodejs
+        state: present
+
+    - name: Install build-essential
+      apt:
+        name: build-essential
+        state: present
 
     - name: Check for package.json
       ansible.builtin.stat:
