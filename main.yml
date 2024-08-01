@@ -16,17 +16,6 @@
         update_cache: yes
         upgrade: yes
 
-    - name: Install required packages
-      apt:
-        name:
-          - git
-          - npm
-          - postgresql
-          - postgresql-contrib
-          - curl
-          - gnupg2
-        state: present
-
     - name: Ensure hng user exists
       user:
         name: hng
@@ -49,10 +38,21 @@
         recurse: yes
       when: clone_result.after != clone_result.before
 
-    - name: Install npm dependencies
-      npm:
-        path: "{{ app_dir }}"
-        state: present
+    - name: Check for package.json
+      ansible.builtin.stat:
+        path: '{{ node_app_dir }}/package.json'
+      register: packagejson
+
+    - name: Run npm prune
+      ansible.builtin.command: npm prune
+      args:
+        chdir: '{{ node_app_dir }}'
+      when: packagejson.stat.exists
+
+    - name: Run npm install
+      community.general.npm:
+        path: '{{ node_app_dir }}'
+      when: packagejson.stat.exists
 
     - name: Build the application
       shell: npm run build
