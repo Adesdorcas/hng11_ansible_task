@@ -1,123 +1,68 @@
 ---
-- name: Configure an instance postgresql, RabbitMQ for the project
+- name: Install and configure PostgreSQL
   hosts: test
   become: true
+
   vars:
-    repo_url: "https://github.com/hngprojects/hng_boilerplate_nestjs"
-    branch: "devops"
-    app_dir: "/opt/stage_5b"
-    pg_admin_user: "admin"
-    pg_admin_password: "devopsnext"
-    pg_db: "hng_db"
-    
+    postgres_version: "14"
+    postgres_user: "admin"
+    postgres_password: "mysecurepass"
+    pg_password_file: "/var/secrets/pg_pw.txt"
+
   tasks:
-    - name: Install and configure PostgreSQL
-      block:
-        - name: Ensure PostgreSQL is running
-          systemd:
-            name: postgresql
-            state: started
-            enabled: yes      
-        - name: Set PostgreSQL admin user password
-          become_user: postgres
-          postgresql_user:
-            name: "{{ pg_admin_user }}"
-            password: "{{ pg_admin_password }}"
-            role_attr_flags: "SUPERUSER,CREATEDB"     
-        - name: Create a database
-          become_user: postgres
-          postgresql_db:
-            name: "{{ pg_db }}"
-            owner: "{{ pg_admin_user }}"      
-        - name: Save PostgreSQL admin credentials
-          copy:
-            content: |
-              POSTGRES_USER={{ pg_admin_user }}
-              POSTGRES_PASSWORD={{ pg_admin_password }}
-              POSTGRES_DB={{ pg_db }}
-            dest: /var/secrets/pg_pw.txt
-            owner: root
-            group: root
-            mode: '0600'
+    - name: Update apt cache
+      apt:
+        update_cache: yes
 
-    - name: Install and configure RabbitMQ
-      block:
-        - name: Install RabbitMQ
-          apt:
-            name: rabbitmq-server
-            state: present
-  
-        - name: Ensure RabbitMQ is running
-          systemd:
-            name: rabbitmq-server
-            state: started
-            enabled: yes
-  
-    - name: Install Nginx 1.26
-      shell: |
-        sudo apt-get install -y apt-transport-https lsb-release ca-certificates
-        echo "deb http://nginx.org/packages/ubuntu `lsb_release -cs` nginx" | tee /etc/apt/sources.list.d/nginx.list
-        curl -fsSL https://nginx.org/keys/nginx_signing.key | apt-key add -
-        apt-get update
-        apt-get install -y nginx=1.26.*
-  
-    - name: Configure Nginx
-      block:
-        - name: Remove default nginx configuration
-          file:
-            path: /etc/nginx/conf.d/default.conf
-            state: absent
-  
-        - name: Create Nginx configuration for the application
-          copy:
-            content: |
-              server {
-                  listen 80;
-                  server_name _;
-                  location / {
-                      proxy_pass http://127.0.0.1:3000;
-                      proxy_http_version 1.1;
-                      proxy_set_header Upgrade $http_upgrade;
-                      proxy_set_header Connection 'upgrade';
-                      proxy_set_header Host $host;
-                      proxy_cache_bypass $http_upgrade;
-                  }
-              }
-            dest: /etc/nginx/conf.d/stage_5b.conf
-            owner: root
-            group: root
-            mode: '0644'
-  
-        - name: Restart Nginx
-          systemd:
-            name: nginx
-            state: restarted
-            enabled: yes
-  
-    - name: Configure logging
-      block:
-        - name: Create log directory
-          file:
-            path: /var/log/stage_5b
-            state: directory
-            owner: hng
-            group: hng
-            mode: '0755'
-  
-        - name: Create stderr log file
-          file:
-            path: /var/log/stage_5b/error.log
-            state: touch
-            owner: hng
-            group: hng
-            mode: '0644'
-  
-        - name: Create stdout log file
-          file:
-            path: /var/log/stage_5b/out.log
-            state: touch
-            owner: hng
-            group: hng
-            mode: '0644'
+    - name: Install PostgreSQL
+      apt:
+        name: "postgresql-{{ postgres_version }}"
+        state: present
 
-  
+    - name: Install PostgreSQL client
+      apt:
+        name: "postgresql-client-{{ postgres_version }}"
+        state: present
+
+    - name: Install PostgreSQL contrib
+      apt:
+        name: "postgresql-contrib-{{ postgres_version }}"
+        state: present
+
+    - name: Ensure PostgreSQL service is enabled and started
+      service:
+        name: postgresql
+        state: started
+        enabled: yes
+
+    - name: Create PostgreSQL admin user
+      become_user: postgres
+      postgresql_user:
+        name: "{{ postgres_user }}"
+        password: "{{ postgres_password }}"
+        role_attr_flags: "CREATEDB,CREATEROLE,LOGIN"
+
+    - name: Save PostgreSQL admin credentials to file
+      copy:
+        dest: "{{ pg_password_file }}"
+        content: |
+          PGUSER={{ postgres_user }}
+          PGPASSWORD={{ postgres_password }}
+      mode: '0600'
+
+    - name: Ensure /var/secrets directory exists
+      file:
+        path: /var/secrets
+        state: directory
+        mode: '0700'
+
+    - name: Move credentials file to /var/secrets
+      command: mv /root/pg_pw.txt /var/secrets/pg_pw.txt
+      when: pg_password_file == "/root/pg_pw.txt"
+
+    - name: Ensure proper ownership of the credentials file
+      file:
+        path: "{{ pg_password_file }}"
+        owner: root
+        group: root
+        mode: '0600'
