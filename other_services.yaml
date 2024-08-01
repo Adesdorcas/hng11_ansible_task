@@ -7,33 +7,29 @@
     repo_url: "https://github.com/hngprojects/hng_boilerplate_nestjs"
     branch: "devops"
     app_dir: "/opt/stage_5b"
-    #pg_user: "admin"
-    #pg_password: "devopsnext"
-    #pg_database: "hngnext_db"
-    #pg_pw_file: "/var/secrets/pg_pw.txt"
-    #node_version: "16.x"
+    pg_user: "admin"
+    pg_password: "devopsnext"
+    pg_database: "hngnext_db"
+    pg_pw_file: "/var/secrets/pg_pw.txt"
     rabbitmq_version: "3.8"
-    #nginx_conf: "/etc/nginx/sites-available/default"
-    node_app_dir: /opt/stage_5b
-    app_port: 3000
-    proxy_port: 80
+    nginx_conf: "/etc/nginx/sites-available/default"
     log_dir: "/var/log/stage_5b"
     hng_user: "hng"
   
   tasks:
-    - name: Create application directory
-        path: "{{ app_dir }}"
-        state: directory
-        owner: "{{ hng_user }}"
-        group: "{{ hng_user }}"
-        mode: 0755
-      
-    - name: Clone the application repository
-      git:
-        repo: "{{ repo_url }}"
-        dest: "{{ app_dir }}"
-        version: "{{ branch }}"
-        force: yes
+  #- name: Create application directory
+  #    path: "{{ app_dir }}"
+  #    state: directory
+  #    owner: "{{ hng_user }}"
+  #    group: "{{ hng_user }}"
+  #    mode: 0755
+  #  
+  #- name: Clone the application repository
+  #  git:
+  #    repo: "{{ repo_url }}"
+  #    dest: "{{ app_dir }}"
+  #    version: "{{ branch }}"
+  #    force: yes
 
     - name: Install PostgreSQL
       apt:
