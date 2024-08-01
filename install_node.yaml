@@ -17,6 +17,11 @@
         - curl
         - software-properties-common
 
+    - name: Add NodeSource GPG key
+      shell: "curl -fsSL https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -"
+      args:
+        warn: false
+
     - name: Add NodeSource repository
       apt_repository:
         repo: "deb https://deb.nodesource.com/node_14.x {{ ansible_distribution_release }} main"
@@ -33,7 +38,5 @@
       apt:
         name: build-essential
         state: present
-  
 
-  
   

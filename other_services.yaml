@@ -1,0 +1,94 @@
+---
+- name: Installing Database and other services on server
+  hosts: test
+  gather_facts: yes
+  become: yes
+  vars:
+    repo_url: "https://github.com/hngprojects/hng_boilerplate_nestjs"
+    branch: "devops"
+    app_dir: "/opt/stage_5b"
+    #pg_user: "admin"
+    #pg_password: "devopsnext"
+    #pg_database: "hngnext_db"
+    #pg_pw_file: "/var/secrets/pg_pw.txt"
+    #node_version: "16.x"
+    rabbitmq_version: "3.8"
+    #nginx_conf: "/etc/nginx/sites-available/default"
+    node_app_dir: /opt/stage_5b
+    app_port: 3000
+    proxy_port: 80
+    log_dir: "/var/log/stage_5b"
+    hng_user: "hng"
+  
+  tasks:
+    - name: Create application directory
+      file:
+      path: "{{ app_dir }}"
+      state: directory
+      owner: "{{ hng_user }}"
+      group: "{{ hng_user }}"
+      mode: 0755
+      
+    - name: Clone the application repository
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: "{{ branch }}"
+        force: yes
+
+    - name: Install PostgreSQL
+      apt:
+        name: postgresql-14
+        state: present
+
+    - name: Configure PostgreSQL
+      become_user: postgres
+      postgresql_db:
+        name: stage_5b
+        state: present
+    
+    - name: Save admin user and credentials
+      copy:
+        content: "hng:password"
+        dest: /var/secrets/pg_pw.txt
+        owner: hng
+        group: hng
+        mode: '0600'
+
+    - name: Install RabbitMQ
+      apt:
+        name: rabbitmq-server
+        state: present
+
+    - name: Install the version '1.26' of package "nginx" and allow potential downgrades
+      ansible.builtin.apt:
+        name: nginx=1.26
+        state: present
+
+    - name: Setup Nginx to reverse proxy application to port 80
+      template:
+        src: templates/nginx.conf.j2
+        dest: /etc/nginx/sites-available/default
+        notify: restart nginx
+  
+    - name: Create log directory
+      file:
+        path: /var/log/stage_5b
+        state: directory
+        owner: hng
+        group: hng
+
+    - name: Configure stderr logging
+      copy:
+        content: ""
+        dest: /var/log/stage_5b/error.log
+        owner: hng
+        group: hng
+
+    - name: Configure stdout logging
+      copy:
+        content: ""
+        dest: /var/log/stage_5b/out.log
+        owner: hng
+        group: hng
+
