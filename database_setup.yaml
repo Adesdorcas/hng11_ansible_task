@@ -37,10 +37,24 @@
 
     - name: Create PostgreSQL admin user
       become_user: postgres
-      postgresql_user:
-        name: "{{ postgres_user }}"
-        password: "{{ postgres_password }}"
-        role_attr_flags: "CREATEDB,CREATEROLE,LOGIN"
+      command: >
+        psql -c "DO \$\$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT FROM pg_catalog.pg_roles
+            WHERE rolname = '{{ postgres_user }}') THEN
+            CREATE ROLE {{ postgres_user }} LOGIN PASSWORD '{{ postgres_password }}';
+            ALTER ROLE {{ postgres_user }} CREATEDB;
+            ALTER ROLE {{ postgres_user }} CREATEROLE;
+          END IF;
+        END
+        \$\$;"
+
+    - name: Ensure /var/secrets directory exists
+      file:
+        path: /var/secrets
+        state: directory
+        mode: '0700'
 
     - name: Save PostgreSQL admin credentials to file
       copy:
@@ -50,19 +64,10 @@
           PGPASSWORD={{ postgres_password }}
       mode: '0600'
 
-    - name: Ensure /var/secrets directory exists
-      file:
-        path: /var/secrets
-        state: directory
-        mode: '0700'
-
-    - name: Move credentials file to /var/secrets
-      command: mv /root/pg_pw.txt /var/secrets/pg_pw.txt
-      when: pg_password_file == "/root/pg_pw.txt"
-
     - name: Ensure proper ownership of the credentials file
       file:
         path: "{{ pg_password_file }}"
         owner: root
         group: root
         mode: '0600'
+  
