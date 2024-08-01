@@ -12,36 +12,33 @@
     
   tasks:
     - name: Install and configure PostgreSQL
-        block:
-          - name: Ensure PostgreSQL is running
-            systemd:
-              name: postgresql
-              state: started
-              enabled: yes
-
-          - name: Set PostgreSQL admin user password
-            become_user: postgres
-            postgresql_user:
-              name: "{{ pg_admin_user }}"
-              password: "{{ pg_admin_password }}"
-              role_attr_flags: "SUPERUSER,CREATEDB"
-
-          - name: Create a database
-            become_user: postgres
-            postgresql_db:
-              name: "{{ pg_db }}"
-              owner: "{{ pg_admin_user }}"
-
-          - name: Save PostgreSQL admin credentials
-            copy:
-              content: |
-                POSTGRES_USER={{ pg_admin_user }}
-                POSTGRES_PASSWORD={{ pg_admin_password }}
-                POSTGRES_DB={{ pg_db }}
-              dest: /var/secrets/pg_pw.txt
-              owner: root
-              group: root
-              mode: '0600'
+      block:
+        - name: Ensure PostgreSQL is running
+          systemd:
+            name: postgresql
+            state: started
+            enabled: yes      
+        - name: Set PostgreSQL admin user password
+          become_user: postgres
+          postgresql_user:
+            name: "{{ pg_admin_user }}"
+            password: "{{ pg_admin_password }}"
+            role_attr_flags: "SUPERUSER,CREATEDB"     
+        - name: Create a database
+          become_user: postgres
+          postgresql_db:
+            name: "{{ pg_db }}"
+            owner: "{{ pg_admin_user }}"      
+        - name: Save PostgreSQL admin credentials
+          copy:
+            content: |
+              POSTGRES_USER={{ pg_admin_user }}
+              POSTGRES_PASSWORD={{ pg_admin_password }}
+              POSTGRES_DB={{ pg_db }}
+            dest: /var/secrets/pg_pw.txt
+            owner: root
+            group: root
+            mode: '0600'
 
     - name: Install and configure RabbitMQ
       block:
@@ -122,4 +119,5 @@
             owner: hng
             group: hng
             mode: '0644'
+
   
