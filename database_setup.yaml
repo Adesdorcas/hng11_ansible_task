@@ -16,17 +16,10 @@
 
     - name: Install PostgreSQL
       apt:
-        name: "postgresql-{{ postgres_version }}"
-        state: present
-
-    - name: Install PostgreSQL client
-      apt:
-        name: "postgresql-client-{{ postgres_version }}"
-        state: present
-
-    - name: Install PostgreSQL contrib
-      apt:
-        name: "postgresql-contrib-{{ postgres_version }}"
+        name:
+          - "postgresql-{{ postgres_version }}"
+          - "postgresql-client-{{ postgres_version }}"
+          - "postgresql-contrib-{{ postgres_version }}"
         state: present
 
     - name: Ensure PostgreSQL service is enabled and started
@@ -37,7 +30,7 @@
 
     - name: Create PostgreSQL admin user
       become_user: postgres
-      command: >
+      shell: |
         psql -c "DO \$\$
         BEGIN
           IF NOT EXISTS (
@@ -62,7 +55,7 @@
         content: |
           PGUSER={{ postgres_user }}
           PGPASSWORD={{ postgres_password }}
-      mode: '0600'
+        mode: '0600'
 
     - name: Ensure proper ownership of the credentials file
       file:
@@ -70,4 +63,3 @@
         owner: root
         group: root
         mode: '0600'
-  
