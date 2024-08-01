@@ -1,0 +1,89 @@
+---
+#tasks file for nodeapp
+- name: Clone the boilerplate repository
+  git:
+    repo: "{{ repo_url }}"
+    dest: "{{ app_dir }}"
+    version: "{{ branch }}"
+    force: yes
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+  
+- name: Check for package.json
+  ansible.builtin.stat:
+    path: '{{ node_app_dir }}/package.json'
+  register: packagejson
+- name: Run npm prune
+  ansible.builtin.command: npm prune
+  args:
+    chdir: '{{ node_app_dir }}'
+  when: packagejson.stat.exists
+- name: Run npm install
+  community.general.npm:
+    path: '{{ node_app_dir }}'
+  when: packagejson.stat.exists
+  
+- name: Create hng user with sudo privileges
+  user:
+    name: "{{ hng_user }}"
+    shell: /bin/bash
+    groups: sudo
+    append: yes
+- name: Create log directory
+  file:
+    path: "{{ log_dir }}"
+    state: directory
+    owner: "{{ hng_user }}"
+    group: "{{ hng_user }}"
+    mode: '0755'
+- name: Install PostgreSQL
+  apt:
+    name: postgresql-14
+    state: present
+- name: Configure PostgreSQL
+  become_user: postgres
+  postgresql_db:
+    name: stage_5b
+    state: present
+- name: Save admin user and credentials
+  copy:
+    content: "hng:password"
+    dest: /var/secrets/pg_pw.txt
+    owner: hng
+    group: hng
+    mode: '0600'
+- name: Install RabbitMQ
+  apt:
+    name: rabbitmq-server
+    state: present
+
+- name: Install the version '1.26' of package "nginx" and allow potential downgrades
+  ansible.builtin.apt:
+    name: nginx=1.26
+    state: present
+- name: Setup Nginx to reverse proxy application to port 80
+  template:
+    src: templates/nginx.conf.j2
+    dest: /etc/nginx/sites-available/default
+  notify: restart nginx
+  
+- name: Create log directory
+  file:
+    path: /var/log/stage_5b
+    state: directory
+    owner: hng
+    group: hng
+- name: Configure stderr logging
+  copy:
+    content: ""
+    dest: /var/log/stage_5b/error.log
+    owner: hng
+    group: hng
+- name: Configure stdout logging
+  copy:
+    content: ""
+    dest: /var/log/stage_5b/out.log
+    owner: hng
+    group: hng
