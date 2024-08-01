@@ -29,6 +29,7 @@
         enabled: yes
 
     - name: Create PostgreSQL admin user
+      become: yes
       become_user: postgres
       shell: |
         psql -c "DO \$\$
@@ -56,6 +57,8 @@
           PGUSER={{ postgres_user }}
           PGPASSWORD={{ postgres_password }}
         mode: '0600'
+      become: yes
+      become_user: root
 
     - name: Ensure proper ownership of the credentials file
       file:
@@ -63,3 +66,7 @@
         owner: root
         group: root
         mode: '0600'
+      become: yes
+      become_user: root
+
+  
