@@ -1,5 +1,5 @@
 ---
-- name: Configure an instance of the hng_boilerplate_nestjs project
+- name: Configure an instance postgresql, RabbitMQ for the project
   hosts: test
   become: true
   vars:
@@ -11,65 +11,37 @@
     pg_db: "hng_db"
     
   tasks:
-    - name: Update and upgrade apt packages
-      apt:
-        update_cache: yes
-        upgrade: yes
-
-    - name: Ensure hng user exists
-      user:
-        name: hng
-        state: present
-        create_home: yes
-
-    - name: Clone the repository
-      git:
-        repo: "{{ repo_url }}"
-        dest: "{{ app_dir }}"
-        version: "{{ branch }}"
-        force: yes
-      register: clone_result
-
-    - name: Ensure the app directory is owned by hng user
-      file:
-        path: "{{ app_dir }}"
-        owner: hng
-        group: hng
-        recurse: yes
-      when: clone_result.after != clone_result.before
-
-
     - name: Install and configure PostgreSQL
-      block:
-        - name: Ensure PostgreSQL is running
-          systemd:
-            name: postgresql
-            state: started
-            enabled: yes
+        block:
+          - name: Ensure PostgreSQL is running
+            systemd:
+              name: postgresql
+              state: started
+              enabled: yes
 
-        - name: Set PostgreSQL admin user password
-          become_user: postgres
-          postgresql_user:
-            name: "{{ pg_admin_user }}"
-            password: "{{ pg_admin_password }}"
-            role_attr_flags: "SUPERUSER,CREATEDB"
+          - name: Set PostgreSQL admin user password
+            become_user: postgres
+            postgresql_user:
+              name: "{{ pg_admin_user }}"
+              password: "{{ pg_admin_password }}"
+              role_attr_flags: "SUPERUSER,CREATEDB"
 
-        - name: Create a database
-          become_user: postgres
-          postgresql_db:
-            name: "{{ pg_db }}"
-            owner: "{{ pg_admin_user }}"
+          - name: Create a database
+            become_user: postgres
+            postgresql_db:
+              name: "{{ pg_db }}"
+              owner: "{{ pg_admin_user }}"
 
-        - name: Save PostgreSQL admin credentials
-          copy:
-            content: |
-              POSTGRES_USER={{ pg_admin_user }}
-              POSTGRES_PASSWORD={{ pg_admin_password }}
-              POSTGRES_DB={{ pg_db }}
-            dest: /var/secrets/pg_pw.txt
-            owner: root
-            group: root
-            mode: '0600'
+          - name: Save PostgreSQL admin credentials
+            copy:
+              content: |
+                POSTGRES_USER={{ pg_admin_user }}
+                POSTGRES_PASSWORD={{ pg_admin_password }}
+                POSTGRES_DB={{ pg_db }}
+              dest: /var/secrets/pg_pw.txt
+              owner: root
+              group: root
+              mode: '0600'
 
     - name: Install and configure RabbitMQ
       block:
@@ -77,13 +49,13 @@
           apt:
             name: rabbitmq-server
             state: present
-
+  
         - name: Ensure RabbitMQ is running
           systemd:
             name: rabbitmq-server
             state: started
             enabled: yes
-
+  
     - name: Install Nginx 1.26
       shell: |
         sudo apt-get install -y apt-transport-https lsb-release ca-certificates
@@ -91,14 +63,14 @@
         curl -fsSL https://nginx.org/keys/nginx_signing.key | apt-key add -
         apt-get update
         apt-get install -y nginx=1.26.*
-
+  
     - name: Configure Nginx
       block:
         - name: Remove default nginx configuration
           file:
             path: /etc/nginx/conf.d/default.conf
             state: absent
-
+  
         - name: Create Nginx configuration for the application
           copy:
             content: |
@@ -118,13 +90,13 @@
             owner: root
             group: root
             mode: '0644'
-
+  
         - name: Restart Nginx
           systemd:
             name: nginx
             state: restarted
             enabled: yes
-
+  
     - name: Configure logging
       block:
         - name: Create log directory
@@ -134,7 +106,7 @@
             owner: hng
             group: hng
             mode: '0755'
-
+  
         - name: Create stderr log file
           file:
             path: /var/log/stage_5b/error.log
@@ -142,7 +114,7 @@
             owner: hng
             group: hng
             mode: '0644'
-
+  
         - name: Create stdout log file
           file:
             path: /var/log/stage_5b/out.log
@@ -150,5 +122,4 @@
             owner: hng
             group: hng
             mode: '0644'
-
   

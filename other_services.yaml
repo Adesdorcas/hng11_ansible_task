@@ -22,12 +22,11 @@
   
   tasks:
     - name: Create application directory
-      file:
-      path: "{{ app_dir }}"
-      state: directory
-      owner: "{{ hng_user }}"
-      group: "{{ hng_user }}"
-      mode: 0755
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ hng_user }}"
+        group: "{{ hng_user }}"
+        mode: 0755
       
     - name: Clone the application repository
       git:
