@@ -63,6 +63,32 @@
       args:
         chdir: "{{ app_directory }}"
 
+    - name: Create app.env file
+      copy:
+        dest: "{{ app_dir }}/app.env"
+        content: |
+          PROFILE=local
+          NODE_ENV=development
+
+          PORT=3000
+
+          DB_USERNAME=postgres
+          DB_PASSWORD=securepassword
+          DB_DATABASE=database
+          DB_HOST=localhost
+          DB_PORT=5432
+          DB_ENTITIES=dist/src/modules/**/entities/**/*.entity{.ts,.js}
+
+          DB_MIGRATIONS=dist/**/migrations/*{.ts,.js}
+          DB_TYPE=postgres
+          DB_SSL=true
+
+          JWT_SECRET=someSecrets
+          JWT_EXPIRY_TIMEFRAME=3600
+        owner: hng
+        group: hng
+        mode: '0600'
+    
     - name: Install application dependencies
       npm:
         path: "{{ app_directory }}"
