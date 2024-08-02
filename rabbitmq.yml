@@ -50,15 +50,17 @@
 
               location / {
                   proxy_pass http://{{ app_host }}:{{ app_port }};
-                  proxy_http_version 1.1;
-                  proxy_set_header Upgrade $http_upgrade;
-                  proxy_set_header Connection 'upgrade';
                   proxy_set_header Host $host;
-                  proxy_cache_bypass $http_upgrade;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
               }
               error_log /var/log/stage_5b/error.log;
               access_log /var/log/stage_5b/out.log;
           }
+      notify: 
+        - Restart Nginx service
+        
 
     - name: Ensure Nginx service is enabled and started
       service:
