@@ -7,7 +7,7 @@
     node_version: "16.x"
     app_name: "hng_boilerplate_nestjs"
     app_repo_url: "https://github.com/hngprojects/hng_boilerplate_nestjs.git"
-    app_directory: "/opt/stage_5b"
+    app_dir: "/opt/stage_5b"
 
   tasks:
     - name: Update apt cache
@@ -59,16 +59,16 @@
         - typeorm
 
     - name: Change to application directory
-      shell: cd "{{ app_directory }}"
+      shell: cd "{{ app_dir }}"
       args:
-        chdir: "{{ app_directory }}"
+        chdir: "{{ app_dir }}"
 
     - name: Create app.env file
       copy:
         dest: "{{ app_dir }}/app.env"
         content: |
           PROFILE=local
-          NODE_ENV=development
+          NODE_ENV=production
 
           PORT=3000
 
@@ -91,13 +91,13 @@
     
     - name: Install application dependencies
       npm:
-        path: "{{ app_directory }}"
+        path: "{{ app_dir }}"
         state: present
 
     - name: Build the application
       shell: npm run build
       args:
-        chdir: "{{ app_directory }}"
+        chdir: "{{ app_dir }}"
 
     - name: Create systemd service file for the application
       copy:
@@ -108,12 +108,12 @@
           After=network.target
 
           [Service]
-          ExecStart=/usr/bin/node {{ app_directory }}/dist/src/main.js
+          ExecStart=/usr/bin/node {{ app_dir }}/dist/src/main.js
           Restart=always
           User=nobody
           Group=nogroup
           Environment=NODE_ENV=production
-          WorkingDirectory={{ app_directory }}
+          WorkingDirectory={{ app_dir }}
 
           [Install]
           WantedBy=multi-user.target
