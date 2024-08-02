@@ -5,10 +5,13 @@
 
   vars:
     postgres_version: "14"
-    postgres_user: "admin"
-    postgres_password: "mysecurepass"
-    pg_password_file: "/var/secrets/pg_pw.txt"
-
+    pg_user: postgres
+    pg_password: securepassword
+    pg_password_file: /var/secrets/pg_pw.txt
+    pg_database: postgres
+    pg_host: localhost
+    log_dir: /var/log/stage_5b
+    
   tasks:
     - name: Update apt cache
       apt:
@@ -28,45 +31,27 @@
         state: started
         enabled: yes
 
-    - name: Create PostgreSQL admin user
-      become: yes
-      become_user: postgres
-      shell: |
-        psql -c "DO \$\$
-        BEGIN
-          IF NOT EXISTS (
-            SELECT FROM pg_catalog.pg_roles
-            WHERE rolname = '{{ postgres_user }}') THEN
-            CREATE ROLE {{ postgres_user }} LOGIN PASSWORD '{{ postgres_password }}';
-            ALTER ROLE {{ postgres_user }} CREATEDB;
-            ALTER ROLE {{ postgres_user }} CREATEROLE;
-          END IF;
-        END
-        \$\$;"
+    - name: Save PostgreSQL credentials
+      copy:
+        dest: "{{ pg_password_file }}"
+        content: "PG_USER={{ pg_user }}\nPG_PASSWORD={{ pg_password }}\nPG_DATABASE={{ pg_database }}\n"
+        owner: root
+        group: root
+        mode: '0600'
 
+    - name: Read PostgreSQL credentials
+      slurp:
+        src: "{{ pg_password_file }}"
+      register: pg_creds
+
+    - name: Set PostgreSQL credentials as variables
+      set_fact:
+        pg_user: "{{ (pg_creds.content | b64decode).split('\n')[0].split('=')[1] }}"
+        pg_password: "{{ (pg_creds.content | b64decode).split('\n')[1].split('=')[1] }}"
+        pg_database: "{{ (pg_creds.content | b64decode).split('\n')[2].split('=')[1] }}"
+    
     - name: Ensure /var/secrets directory exists
       file:
         path: /var/secrets
         state: directory
         mode: '0700'
-
-    - name: Save PostgreSQL admin credentials to file
-      copy:
-        dest: "{{ pg_password_file }}"
-        content: |
-          PGUSER={{ postgres_user }}
-          PGPASSWORD={{ postgres_password }}
-        mode: '0600'
-      become: yes
-      become_user: root
-
-    - name: Ensure proper ownership of the credentials file
-      file:
-        path: "{{ pg_password_file }}"
-        owner: root
-        group: root
-        mode: '0600'
-      become: yes
-      become_user: root
-
-  
