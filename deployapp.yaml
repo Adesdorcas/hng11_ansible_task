@@ -28,11 +28,14 @@
         append: yes
 
     - name: Create application directory
-        path: "{{ app_dir }}"
+      file:
+        path: "{{ item }}"
         state: directory
-        owner: "{{ hng_user }}"
-        group: "{{ hng_user }}"
-        mode: 0755
+        owner: hng
+        mode: '0755'
+      loop:
+        - /opt/stage_5b
+        - "{{ app_dir }}"
 
     - name: Clone the application repository
       git:
