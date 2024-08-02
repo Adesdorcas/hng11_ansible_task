@@ -1,6 +1,6 @@
 ---
-- name: Installing Database and other services on server
-  hosts: test
+- name: Installing rabbitMQ and Nginx services
+  hosts: hng
   gather_facts: yes
   become: yes
   vars:
@@ -31,6 +31,14 @@
       apt:
         name: nginx=1.26.*
         state: present
+
+    - name: Ensure Nginx configuration directory exists
+      file:
+        path: /etc/nginx/sites-available
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
 
     - name: Configure Nginx to reverse proxy
       copy:

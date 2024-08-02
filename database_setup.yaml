@@ -1,6 +1,6 @@
 ---
 - name: Install and configure PostgreSQL
-  hosts: test
+  hosts: hng
   become: true
 
   vars:
@@ -31,6 +31,12 @@
         state: started
         enabled: yes
 
+    - name: Ensure /var/secrets directory exists
+      file:
+        path: /var/secrets
+        state: directory
+        mode: '0700'
+
     - name: Save PostgreSQL credentials
       copy:
         dest: "{{ pg_password_file }}"
@@ -49,9 +55,3 @@
         pg_user: "{{ (pg_creds.content | b64decode).split('\n')[0].split('=')[1] }}"
         pg_password: "{{ (pg_creds.content | b64decode).split('\n')[1].split('=')[1] }}"
         pg_database: "{{ (pg_creds.content | b64decode).split('\n')[2].split('=')[1] }}"
-    
-    - name: Ensure /var/secrets directory exists
-      file:
-        path: /var/secrets
-        state: directory
-        mode: '0700'

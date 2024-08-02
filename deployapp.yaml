@@ -1,18 +1,45 @@
 ---
 - name: Setup and deploy NestJS application
-  hosts: test
+  hosts: hng
   become: yes
 
   vars:
+    repo_url: "https://github.com/hngprojects/hng_boilerplate_nestjs"
+    branch: "devops"
     node_version: "16.x"
     app_name: "hng_boilerplate_nestjs"
-    app_repo_url: "https://github.com/hngprojects/hng_boilerplate_nestjs.git"
     app_dir: "/opt/stage_5b"
+    hng_user: "hng"
+    app_port: 3000
+    app_host: "127.0.0.1"
 
   tasks:
     - name: Update apt cache
       apt:
         update_cache: yes
+
+    - name: Create a user named hng with sudo privileges
+      user:
+        name: hng
+        state: present
+        create_home: yes
+        shell: /bin/bash
+        groups: sudo
+        append: yes
+
+    - name: Create application directory
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ hng_user }}"
+        group: "{{ hng_user }}"
+        mode: 0755
+
+    - name: Clone the application repository
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: "{{ branch }}"
+        force: yes
 
     - name: Install required packages
       apt:
