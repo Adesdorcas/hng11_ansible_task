@@ -4,11 +4,11 @@
   gather_facts: yes
   become: yes
   vars:
-    repo_url: "https://github.com/hngprojects/hng_boilerplate_nestjs"
-    branch: "devops"
     rabbitmq_version: "3.8"
     nginx_conf: "/etc/nginx/sites-available/default"
     log_dir: "/var/log/stage_5b"
+    out_log: "/var/log/stage_5b/out.log"
+    error_log: "/var/log/stage_5b/error.log"
     hng_user: "hng"
 
   tasks:
@@ -66,28 +66,27 @@
             state: restarted
             enabled: yes
 
-    - name: Configure logging
-      block:
-        - name: Create log directory
-          file:
-            path: /var/log/stage_5b
-            state: directory
-            owner: hng
-            group: hng
-            mode: '0755'
+    - name: Create stdout log file
+      file:
+        path: "{{ out_log }}"
+        state: touch
+        owner: "{{ hng_user }}"
+        group: "{{ hng_user }}"
+        mode: '0644'
 
-        - name: Create stderr log file
-          file:
-            path: /var/log/stage_5b/error.log
-            state: touch
-            owner: hng
-            group: hng
-            mode: '0644'
+    - name: Create stderr log file
+      file:
+        path: "{{ error_log }}"
+        state: touch
+        owner: "{{ hng_user }}"
+        group: "{{ hng_user }}"
+        mode: '0644'
 
-        - name: Create stdout log file
-          file:
-            path: /var/log/stage_5b/out.log
-            state: touch
-            owner: hng
-            group: hng
-            mode: '0644'
+    - name: Redirect stdout and stderr to log files
+      shell: |
+        exec > >(tee -a {{ out_log }} )
+        exec 2> >(tee -a {{ error_log }} >&2 )
+      args:
+        executable: /bin/bash
+      async: 0
+      poll: 0
