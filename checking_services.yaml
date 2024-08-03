@@ -12,33 +12,30 @@
     postgres_user: postgres
     postgres_password: securepassword
     pg_database: postgres
-    pg_host: localhost
+    env_file_path: "/opt/stage_5b/.env"
   
   tasks:
-    - name: Set environment variables
-      shell: |
-        export TYPEORM_CONNECTION=postgres
-        export TYPEORM_ENTITIES=dist/**/*.entity.js
-        export TYPEORM_MIGRATIONS=dist/migrations/*.js
-        export TYPEORM_HOST={{ db_host }}
-        export TYPEORM_PORT={{ db_port }}
-        export TYPEORM_USERNAME={{ postgres_user }}
-        export TYPEORM_PASSWORD={{ postgres_password }}
-        export TYPEORM_DATABASE={{ db_name }}
-        npm run start:prod
-      args:
-        chdir: /opt/stage_5b
-      async: 0
-      poll: 0
+    - name: Setup environment file
+      template:
+        src: templates/env.j2
+        dest: /opt/stage_5b/.env
+      vars:
+        postgres_user: "{{ postgres_user }}"
+        postgres_password: "{{ postgres_password }}"
+        db_name: "{{ db_name }}"
+        db_host: "{{ db_host }}"
+        db_port: "{{ db_port }}"
 
-    - name: Ensure application is running on 127.0.0.1:3000
-      shell: |
-        npm run start:prod
-      args:
-        chdir: /opt/stage_5b
-      async: 0
-      poll: 0
+    - name: Install PM2 globally
+      npm:
+        name: pm2
+        global: yes
+        state: present
 
+    - name: Start the application with PM2
+      shell: |
+        pm2 start /opt/stage_5b/dist/src/main.js --name "nestjsapp" --env production
+    
     - name: Ensure Nginx service is enabled and started
       service:
         name: nginx
