@@ -14,17 +14,12 @@
     app_host: "127.0.0.1"
 
   tasks:
-    - name: Update apt cache
-      apt:
-        update_cache: yes
-
     - name: Create a user named hng with sudo privileges
       user:
         name: hng
         state: present
         create_home: yes
-        shell: /bin/bash
-        groups: sudo
+        groups: sudo, hng
         append: yes
 
     - name: Create application directory
@@ -32,6 +27,7 @@
         path: "{{ item }}"
         state: directory
         owner: hng
+        group: hng
         mode: '0755'
       loop:
         - /opt/stage_5b

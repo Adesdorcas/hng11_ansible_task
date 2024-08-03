@@ -1,0 +1,47 @@
+---
+- name: Ensure all services are available
+  hosts: test
+  gather_facts: yes
+  become: yes
+  
+  tasks:
+    - name: Ensure application is running on 127.0.0.1:3000
+      shell: |
+        npm run start:prod
+      args:
+        chdir: /var/log/stage_5b
+      async: 0
+      poll: 0
+
+    - name: Ensure Nginx service is enabled and started
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Check PostgreSQL service status
+      command: systemctl is-active postgresql
+      register: postgresql_status
+      changed_when: false
+
+    - name: Check Node.js application status
+      command: lsof -i :{{ app_port }}
+      register: nodejs_status
+      changed_when: false
+
+    - name: Check Nginx service status
+      command: systemctl is-active nginx
+      register: nginx_status
+      changed_when: false
+
+    - name: Display PostgreSQL service status
+      debug:
+        msg: "PostgreSQL service is {{ postgresql_status.stdout }}"
+
+    - name: Display Node.js application status
+      debug:
+        msg: "Node.js application status: {{ nodejs_status.stdout }}"
+
+    - name: Display Nginx service status
+      debug:
+        msg: "Nginx service is {{ nginx_status.stdout }}"
