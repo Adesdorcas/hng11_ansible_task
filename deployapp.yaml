@@ -12,6 +12,13 @@
     hng_user: "hng"
     app_port: 3000
     app_host: "127.0.0.1"
+    db_name: "postgres"
+    db_host: "127.0.0.1"
+    db_port: 5432
+    postgres_user: postgres
+    postgres_password: securepassword
+    pg_database: postgres
+    env_file_path: "/opt/stage_5b/.env"
 
   tasks:
     - name: Create a user named hng with sudo privileges
@@ -89,31 +96,16 @@
       args:
         chdir: "{{ app_dir }}"
 
-    - name: Create app.env file
-      copy:
-        dest: "{{ app_dir }}/app.env"
-        content: |
-          PROFILE=local
-          NODE_ENV=production
-
-          PORT=3000
-
-          DB_USERNAME=postgres
-          DB_PASSWORD=securepassword
-          DB_DATABASE=database
-          DB_HOST=localhost
-          DB_PORT=5432
-          DB_ENTITIES=dist/src/modules/**/entities/**/*.entity{.ts,.js}
-
-          DB_MIGRATIONS=dist/**/migrations/*{.ts,.js}
-          DB_TYPE=postgres
-          DB_SSL=true
-
-          JWT_SECRET=someSecrets
-          JWT_EXPIRY_TIMEFRAME=3600
-        owner: hng
-        group: hng
-        mode: '0600'
+    - name: Setup environment file
+      template:
+        src: templates/env.j2
+        dest: /opt/stage_5b/.env
+      vars:
+        postgres_user: "{{ postgres_user }}"
+        postgres_password: "{{ postgres_password }}"
+        db_name: "{{ db_name }}"
+        db_host: "{{ db_host }}"
+        db_port: "{{ db_port }}"
     
     - name: Install application dependencies
       npm:
@@ -125,31 +117,49 @@
       args:
         chdir: "{{ app_dir }}"
 
-    - name: Create systemd service file for the application
+    - name: Install PM2 globally
+      npm:
+        name: pm2
+        global: yes
+        state: present
+
+    - name: Start the application with PM2
+      shell: |
+        pm2 start /opt/stage_5b/dist/src/main.js --name "nestjsapp" --env production
+    
+    - name: Configure Nginx
       copy:
-        dest: /etc/systemd/system/{{ app_name }}.service
+        dest: /etc/nginx/sites-available/nestjsapp
         content: |
-          [Unit]
-          Description=NestJS Application
-          After=network.target
+          server {
+              listen 80;
+              server_name ec2-54-158-143-47.compute-1.amazonaws.com;
 
-          [Service]
-          ExecStart=/usr/bin/node {{ app_dir }}/dist/src/main.js
-          Restart=always
-          User=nobody
-          Group=nogroup
-          Environment=NODE_ENV=production
-          WorkingDirectory={{ app_dir }}
+              location / {
+                  proxy_pass http://127.0.0.1:3000;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection 'upgrade';
+                  proxy_set_header Host $host;
+                  proxy_cache_bypass $http_upgrade;
+              }
+          }
+      notify:
+        - Restart Nginx
 
-          [Install]
-          WantedBy=multi-user.target
+    - name: Enable Nginx site
+      file:
+        src: /etc/nginx/sites-available/nestjsapp
+        dest: /etc/nginx/sites-enabled/nestjsapp
+        state: link
 
-    - name: Reload systemd to apply new service
-      systemd:
-        daemon_reload: yes
+    - name: Remove default Nginx site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
 
-    - name: Enable and start the NestJS application service
-      systemd:
-        name: "{{ app_name }}"
-        enabled: yes
-        state: started
+  handlers:
+    - name: Restart Nginx
+      service:
+        name: nginx
+        state: restarted
