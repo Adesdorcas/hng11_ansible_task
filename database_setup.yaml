@@ -4,7 +4,6 @@
   become: true
 
   vars:
-    postgres_version: "14"
     pg_user: postgres
     pg_password: securepassword
     pg_password_file: /var/secrets/pg_pw.txt
@@ -20,9 +19,9 @@
     - name: Install PostgreSQL
       apt:
         name:
-          - "postgresql-{{ postgres_version }}"
-          - "postgresql-client-{{ postgres_version }}"
-          - "postgresql-contrib-{{ postgres_version }}"
+          - "postgresql-"
+          - "postgresql-client-"
+          - "postgresql-contrib-"
         state: present
 
     - name: Ensure PostgreSQL service is enabled and started
