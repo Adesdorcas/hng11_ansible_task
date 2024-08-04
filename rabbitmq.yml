@@ -11,7 +11,7 @@
     smtp_host: "smtp.gmail.com"  # Set your SMTP host here
     smtp_port: "587"
     smtp_user: "adesdorcas@gmail.com"
-    smtp_password: "bounty@39#"
+    smtp_password:
     rabbitmq_user: "mynextapp"
     rabbitmq_password: "nextrabbit"
 
