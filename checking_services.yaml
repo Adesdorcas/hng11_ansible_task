@@ -15,27 +15,6 @@
     env_file_path: "/opt/stage_5b/.env"
   
   tasks:
-    - name: Setup environment file
-      template:
-        src: templates/env.j2
-        dest: /opt/stage_5b/.env
-      vars:
-        postgres_user: "{{ postgres_user }}"
-        postgres_password: "{{ postgres_password }}"
-        db_name: "{{ db_name }}"
-        db_host: "{{ db_host }}"
-        db_port: "{{ db_port }}"
-
-    - name: Install PM2 globally
-      npm:
-        name: pm2
-        global: yes
-        state: present
-
-    - name: Start the application with PM2
-      shell: |
-        pm2 start /opt/stage_5b/dist/src/main.js --name "nestjsapp" --env production
-    
     - name: Ensure Nginx service is enabled and started
       service:
         name: nginx

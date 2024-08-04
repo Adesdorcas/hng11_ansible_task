@@ -18,7 +18,12 @@
     pg_user: postgres
     pg_password: securepassword
     pg_database: postgres
+    smtp_host: smtp.gmail.com
     env_file_path: "/opt/stage_5b/.env"
+    jwt_secret: "gsgs"
+    jwt_expiry_timeframe: "1500000"
+    jwt_refresh_secret: "bbp"
+    jwt_refresh_expiry_timeframe: "15"
 
   tasks:
   #  - name: Create a user named hng with sudo privileges
@@ -104,8 +109,8 @@
         postgres_user: "{{ pg_user }}"
         postgres_password: "{{ pg_password }}"
         db_name: "{{ db_name }}"
-        db_host: "{{ db_host }}"
-        db_port: "{{ db_port }}"
+        db_host: "{{ pg_host }}"
+        db_port: "{{ pg_port }}"
     
     - name: Install application dependencies
       npm:
