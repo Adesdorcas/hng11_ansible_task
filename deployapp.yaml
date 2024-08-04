@@ -6,7 +6,6 @@
   vars:
     repo_url: "https://github.com/hngprojects/hng_boilerplate_nestjs"
     branch: "devops"
-    node_version: "16.x"
     app_name: "hng_boilerplate_nestjs"
     app_dir: "/opt/stage_5b"
     hng_user: "hng"
@@ -43,66 +42,52 @@
         - /opt/stage_5b
         - "{{ app_dir }}"
 
-    - name: Clone the application repository
-      git:
-        repo: "{{ repo_url }}"
-        dest: "{{ app_dir }}"
-        version: "{{ branch }}"
-        force: yes
+    - name: Update and upgrade apt packages
+      apt:
+        update_cache: yes
+        upgrade: dist
 
-    - name: Install required packages
+    - name: Add NodeSource repository for Node.js
+      shell: curl -sL https://deb.nodesource.com/setup_18.x | bash -
+      args: executable: /bin/bash
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install necessary packages
       apt:
         name:
-          - curl
           - git
-          - build-essential
+          - postgresql
+          - nginx
+          - rabbitmq-server
+          - nodejs
         state: present
 
-    - name: Check if Node.js is installed
-      command: node -v
-      register: node_version_output
-      ignore_errors: yes
+    - name: Clone the boilerplate repository
+      git:
+        repo: https://github.com/hngprojects/hng_boilerplate_nestjs.git
+        dest: "{{ app_dir }}"
+        version: devops
+      become: yes 
+      become_user: root 
+      when: not repo_exists.stat.exists
 
-    - name: Remove existing Node.js
-      apt:
-        name: nodejs
-        state: absent
-      when: node_version_output.rc == 0
+    - name: Change ownership of the application directory
+      file:
+        path: "{{ app_dir }}"
+        owner: hng
+        group: hng
+        recurse: yes
 
-    - name: Add NodeSource GPG key
-      shell: "curl -fsSL https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -"
-      args:
-        warn: false
-
-    - name: Add NodeSource repository for Node.js 16.x
-      apt_repository:
-        repo: "deb https://deb.nodesource.com/node_16.x {{ ansible_distribution_release }} main"
-        state: present
-        update_cache: yes
-        filename: nodesource
-
-    - name: Install Node.js
-      apt:
-        name: nodejs
-        state: present
-
-    - name: Install global npm packages
-      npm:
-        name: "{{ item }}"
-        state: present
-        global: yes
-      loop:
-        - npm
-        - "@nestjs/cli"
-        - typescript
-        - ts-node
-        - ts-node-dev
-        - typeorm
-
-    - name: Change to application directory
-      shell: cd "{{ app_dir }}"
-      args:
-        chdir: "{{ app_dir }}"
+    - name: Set correct permissions for app directory
+      file:
+        path: "{{ app_dir }}"
+        owner: hng
+        group: hng
+        mode: '0755'
+        recurse: yes
 
     - name: Setup environment file
       template:
@@ -111,33 +96,18 @@
         mode: 0644
     
     - name: Install application dependencies
-      npm:
-        path: "{{ app_dir }}"
-        state: present
-
-    - name: Build the application
-      shell: npm run build
-      args:
-        chdir: "{{ app_dir }}"
-
-    - name: Install PM2 globally
-      npm:
-        name: pm2
-        global: yes
-        state: present
-
-    - name: Start the application with PM2
       shell: |
-        pm2 start /opt/stage_5b/dist/src/main.js --name "nestjsapp" --env production
-      environment:
-        TYPEORM_CONNECTION: "postgres"
-        TYPEORM_ENTITIES: "dist/**/*.entity.js"
-        TYPEORM_MIGRATIONS: "dist/migrations/*.js"
-        TYPEORM_HOST: "127.0.0.1"
-        TYPEORM_PORT: "5432"
-        TYPEORM_USERNAME: "{{ pg_user }}"
-        TYPEORM_PASSWORD: "{{ pg_password }}"
-        TYPEORM_DATABASE: "{{ pg_database }}"
+        su - hng -c "cd {{ app_dir }} && npm install"
+      args:
+        executable: /bin/bash
+      become: yes
+
+    - name: Ensure application runs on port 3000
+      shell: |
+        su - hng -c "cd {{ app_dir }} && nohup npm start > {{ log_dir }}/out.log 2> {{ log_dir }}/error.log &"
+      args:
+        executable: /bin/bash
+      become: yes
 
     - name: Install Nginx
       apt:
