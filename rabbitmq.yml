@@ -28,20 +28,25 @@
         state: started
         enabled: yes
 
-    - name: Add RabbitMQ admin user
+    - name: Create RabbitMQ virtual host
+      rabbitmq_vhost:
+        name: my_vhost
+        state: present
+
+    - name: Create RabbitMQ user
       rabbitmq_user:
         user: "{{ rabbitmq_user }}"
         password: "{{ rabbitmq_password }}"
-        tags: admin
         state: present
     
-    - name: Configure RabbitMQ vhost permissions
-      rabbitmq_vhost:
-        name: /
+    - name: Set RabbitMQ user permissions
+      rabbitmq_user:
         user: "{{ rabbitmq_user }}"
+        vhost: my_vhost 
         configure_priv: .*
         write_priv: .*
         read_priv: .*
+        state: present
 
   handlers:
     - name: Restart Nginx

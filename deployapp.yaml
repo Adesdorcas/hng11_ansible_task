@@ -125,14 +125,14 @@
       shell: |
         pm2 start /opt/stage_5b/dist/src/main.js --name "nestjsapp" --env production
       environment:
-        TYPEORM_CONNECTION: postgres
-        TYPEORM_ENTITIES: dist/**/*.entity.js
-        TYPEORM_MIGRATIONS: dist/migrations/*.js
-        TYPEORM_HOST: 127.0.0.1
-        TYPEORM_PORT: 5432
-        TYPEORM_USERNAME: {{ pg_user }}
-        TYPEORM_PASSWORD: {{ pg_password }}
-        TYPEORM_DATABASE: {{ pg_database }}
+        TYPEORM_CONNECTION: "postgres"
+        TYPEORM_ENTITIES: "dist/**/*.entity.js"
+        TYPEORM_MIGRATIONS: "dist/migrations/*.js"
+        TYPEORM_HOST: "127.0.0.1"
+        TYPEORM_PORT: "5432"
+        TYPEORM_USERNAME: "{{ pg_user }}"
+        TYPEORM_PASSWORD: "{{ pg_password }}"
+        TYPEORM_DATABASE: "{{ pg_database }}"
 
     - name: Configure Nginx
       copy:
