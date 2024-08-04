@@ -1,16 +1,11 @@
 ---
 - name: Ensure all services are available
-  hosts: test
+  hosts: hng
   gather_facts: yes
   become: yes
   vars:
     app_port: 3000
     app_host: "127.0.0.1"
-    db_port: 5432
-    postgres_user: postgres
-    postgres_password: securepassword
-    pg_database: postgres
-    env_file_path: "/opt/stage_5b/.env"
   
   tasks:
     - name: Ensure Nginx service is enabled and started
