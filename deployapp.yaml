@@ -12,6 +12,7 @@
     app_port: 3000
     app_host: "127.0.0.1"
     db_port: 5432
+    pg_host: localhost
     pg_user: postgres
     pg_password: securepassword
     pg_database: postgres
@@ -47,12 +48,11 @@
         update_cache: yes
         upgrade: dist
 
-    - name: Add NodeSource repository for Node.js 18.x
-      apt_repository:
-        repo: "deb https://deb.nodesource.com/node_18.x {{ ansible_distribution_release }} main"
-        state: present
-        update_cache: yes
-        filename: nodesource
+    - name: Add NodeSource repository for Node.js
+      shell: |
+        curl -sL https://deb.nodesource.com/setup_18.x | bash -
+      args: 
+        executable: /bin/bash
 
     - name: Install necessary packages
       apt:
