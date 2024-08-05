@@ -23,6 +23,13 @@
       command: lsof -i :{{ app_port }}
       register: nodejs_status
       changed_when: false
+      failed_when: false
+
+    - name: Restart Node.js application if not running
+      shell: |
+        cd /opt/stage_5b
+        npm run start:prod
+      when: nodejs_status.stdout == ""
 
     - name: Check Nginx service status
       command: systemctl is-active nginx

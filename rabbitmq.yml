@@ -16,30 +16,61 @@
     rabbitmq_password: "nextrabbit"
 
   tasks:
+    - name: Create log directory
+      file:
+        path: /var/log/stage_5b
+        state: directory
+        owner: hng
+        group: hng
+        mode: '0755'
+
     - name: Create stdout log file
       file:
-        path: "{{ out_log }}"
+        path: /var/log/stage_5b/out.log
         state: touch
-        owner: "{{ hng_user }}"
-        group: "{{ hng_user }}"
+        owner: hng
+        group: hng
         mode: '0644'
 
     - name: Create stderr log file
       file:
-        path: "{{ error_log }}"
+        path: /var/log/stage_5b/error.log
         state: touch
-        owner: "{{ hng_user }}"
-        group: "{{ hng_user }}"
+        owner: hng
+        group: hng
         mode: '0644'
+    
+    - name: Configure systemd service for Node.js application
+      copy:
+        dest: /etc/systemd/system/stage_5b.service
+        content: |
+          [Unit]
+          Description=Node.js Application
 
-    - name: Redirect stdout and stderr to log files
-      shell: |
-        exec > >(tee -a {{ out_log }} )
-        exec 2> >(tee -a {{ error_log }} >&2 )
-      args:
-        executable: /bin/bash
-      async: 0
-      poll: 0
+          [Service]
+          ExecStart=/usr/bin/npm start --prefix /opt/stage_5b
+          WorkingDirectory=/opt/stage_5b
+          Restart=always
+          User=hng
+          Group=hng
+          StandardOutput=append:/var/log/stage_5b/out.log
+          StandardError=append:/var/log/stage_5b/error.log
+          Environment=NODE_ENV=production
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: 
+        - Reload systemd
+
+    - name: Reload systemd
+      systemd:
+        daemon_reload: true
+
+    - name: Ensure Node.js application is started
+      systemd:
+        name: stage_5b
+        state: started
+        enabled: yes
 
     - name: Install and configure RabbitMQ
       apt:
