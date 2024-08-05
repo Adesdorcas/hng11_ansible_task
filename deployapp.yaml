@@ -28,7 +28,7 @@
         name: hng
         state: present
         create_home: yes
-        groups: sudo, hng
+        groups: sudo
         append: yes
 
     - name: Create application directory
@@ -47,13 +47,12 @@
         update_cache: yes
         upgrade: dist
 
-    - name: Add NodeSource repository for Node.js
-      shell: curl -sL https://deb.nodesource.com/setup_18.x | bash -
-      args: executable: /bin/bash
-
-    - name: Update apt cache
-      apt:
+    - name: Add NodeSource repository for Node.js 18.x
+      apt_repository:
+        repo: "deb https://deb.nodesource.com/node_18.x {{ ansible_distribution_release }} main"
+        state: present
         update_cache: yes
+        filename: nodesource
 
     - name: Install necessary packages
       apt:
@@ -64,6 +63,11 @@
           - rabbitmq-server
           - nodejs
         state: present
+
+    - name: Check if repository already exists
+      stat:
+        path: "{{ app_dir }}/.git"
+      register: repo_exists
 
     - name: Clone the boilerplate repository
       git:
@@ -88,13 +92,13 @@
         group: hng
         mode: '0755'
         recurse: yes
-
+    
     - name: Setup environment file
       template:
         src: templates/env.j2
         dest: /opt/stage_5b/.env
         mode: 0644
-    
+
     - name: Install application dependencies
       shell: |
         su - hng -c "cd {{ app_dir }} && npm install"
@@ -108,7 +112,36 @@
       args:
         executable: /bin/bash
       become: yes
-
+    
+#- name: Install application dependencies
+#  npm:
+#    path: "{{ app_dir }}"
+#    state: present
+#
+#- name: Build the application
+#  shell: npm run build
+#  args:
+#    chdir: "{{ app_dir }}"
+#
+#- name: Install PM2 globally
+#  npm:
+#    name: pm2
+#    global: yes
+#    state: present
+#
+#- name: Start the application with PM2
+#  shell: |
+#    pm2 start /opt/stage_5b/dist/src/main.js --name "nestjsapp" --env production
+#  environment:
+#    TYPEORM_CONNECTION: "postgres"
+#    TYPEORM_ENTITIES: "dist/**/*.entity.js"
+#    TYPEORM_MIGRATIONS: "dist/migrations/*.js"
+#    TYPEORM_HOST: "127.0.0.1"
+#    TYPEORM_PORT: "5432"
+#    TYPEORM_USERNAME: "{{ pg_user }}"
+#    TYPEORM_PASSWORD: "{{ pg_password }}"
+#    TYPEORM_DATABASE: "{{ pg_database }}"
+#
     - name: Install Nginx
       apt:
         name: nginx=1.26.*
