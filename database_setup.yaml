@@ -9,7 +9,6 @@
     pg_password_file: /var/secrets/pg_pw.txt
     pg_database: postgres
     pg_host: localhost
-    log_dir: /var/log/stage_5b
     
   tasks:
     - name: Update apt cache

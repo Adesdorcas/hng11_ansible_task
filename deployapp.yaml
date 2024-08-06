@@ -8,6 +8,7 @@
     branch: "devops"
     app_name: "hng_boilerplate_nestjs"
     app_dir: "/opt/stage_5b"
+    log_dir: "/var/log/stage_5b"
     hng_user: "hng"
     app_port: 3000
     app_host: "127.0.0.1"
@@ -90,7 +91,7 @@
         path: "{{ app_dir }}"
         owner: hng
         group: hng
-        mode: '0755'
+        mode: '0775'
         recurse: yes
     
     - name: Setup environment file
@@ -102,6 +103,13 @@
     - name: Install application dependencies
       shell: |
         su - hng -c "cd {{ app_dir }} && npm install"
+      args:
+        executable: /bin/bash
+      become: yes
+
+    - name: Compile the TypeScript code to JavaScript
+      shell: |
+        su - hng -c "cd {{ app_dir }} && npm run build"
       args:
         executable: /bin/bash
       become: yes

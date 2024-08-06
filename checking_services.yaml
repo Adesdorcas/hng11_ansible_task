@@ -6,7 +6,14 @@
   vars:
     app_port: 3000
     app_host: "127.0.0.1"
-  
+    pg_user: postgres
+    pg_password: securepassword
+    pg_password_file: /var/secrets/pg_pw.txt
+    pg_database: postgres
+    pg_host: localhost
+    db_host: "localhost"
+    smtp_user: "adesdorcas@gmail.com"
+        
   tasks:
     - name: Ensure Nginx service is enabled and started
       service:
@@ -24,6 +31,12 @@
       register: nodejs_status
       changed_when: false
       failed_when: false
+
+    - name: Setup environment file
+      template:
+        src: templates/env.j2
+        dest: /opt/stage_5b/.env
+        mode: 0644
 
     - name: Restart Node.js application if not running
       shell: |
@@ -47,3 +60,12 @@
     - name: Display Nginx service status
       debug:
         msg: "Nginx service is {{ nginx_status.stdout }}"
+
+    - name: Display environment variables
+      command: printenv
+      register: env_vars
+      changed_when: false
+
+    - name: Debug environment variables
+      debug:
+        var: env_vars.stdout_lines

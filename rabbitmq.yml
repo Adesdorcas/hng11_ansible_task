@@ -72,6 +72,11 @@
         state: started
         enabled: yes
 
+    handlers:
+      - name: Reload systemd
+        systemd:
+          deamon_reload: true
+
     - name: Install and configure RabbitMQ
       apt:
         name: rabbitmq-server
@@ -104,9 +109,5 @@
         read_priv: .*
         state: present
 
-  handlers:
-    - name: Restart Nginx
-      service:
-        name: nginx
-        state: restarted
+  
    
